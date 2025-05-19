@@ -1,0 +1,277 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ARMY Notes</title>
+  <style>
+    :root {
+      --bg-color: #1c1c2e;
+      --text-color: white;
+      --note-bg: #2e2e3e;
+      --button-bg: #7b2cbf;
+      --accent-color: #c792ea;
+    }
+
+    body.light {
+      --bg-color: #fefefe;
+      --text-color: #111;
+      --note-bg: #eaeaea;
+      --button-bg: #9b59b6;
+      --accent-color: #8e44ad;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 0;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: auto;
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    h1 {
+      color: var(--accent-color);
+      font-size: 2.5rem;
+    }
+
+    .subtitle {
+      color: #aaa;
+      margin-bottom: 20px;
+    }
+
+    textarea,
+    select {
+      width: 100%;
+      padding: 10px;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: none;
+      margin-bottom: 10px;
+      background-color: var(--note-bg);
+      color: var(--text-color);
+    }
+
+    button {
+      padding: 10px 20px;
+      background-color: var(--button-bg);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 5px;
+      transition: background-color 0.2s ease;
+    }
+
+    button:hover {
+      background-color: #5e2ca5;
+    }
+
+    #notesList {
+      margin-top: 30px;
+      text-align: left;
+    }
+
+    .note {
+      background-color: var(--note-bg);
+      margin-bottom: 15px;
+      padding: 15px;
+      border-radius: 10px;
+      color: var(--text-color);
+      word-wrap: break-word;
+      position: relative;
+      animation: fadeIn 0.4s ease-in;
+    }
+
+    .note strong {
+      color: var(--accent-color);
+    }
+
+    .delete-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: transparent;
+      color: #ff6b6b;
+      border: none;
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" role="main">
+    <h1>ARMY Notes</h1>
+    <p class="subtitle">Share your thoughts, inspired by BTS 💜</p>
+
+    <textarea id="noteInput" placeholder="Write your note here..." aria-label="Note input"></textarea>
+    <select id="noteTag" aria-label="Note tag">
+      <option value="">Select Tag</option>
+      <option value="#Hope">#Hope</option>
+      <option value="#LoveMyself">#LoveMyself</option>
+      <option value="#MagicShop">#MagicShop</option>
+      <option value="#Wings">#Wings</option>
+    </select>
+    <br />
+    <button onclick="postNote()">Post</button>
+    <button onclick="toggleTheme()">Toggle Theme</button>
+
+    <div id="notesList" aria-live="polite"></div>
+  </div>
+
+  <script>
+    function postNote() {
+      const noteInput = document.getElementById("noteInput");
+      const noteTag = document.getElementById("noteTag");
+      const text = noteInput.value.trim();
+      const tag = noteTag.value;
+
+      if (!text) return;
+
+      const note = {
+        content: text,
+        tag: tag || "#Note",
+        date: new Date().toLocaleString()
+      };
+
+      saveNote(note);
+      displayNotes();
+
+      // Always ask for reminder after posting
+      askReminder(text);
+
+      noteInput.value = "";
+      noteTag.value = "";
+    }
+
+    function askReminder(content) {
+      const years = parseInt(prompt("Set reminder: How many YEARS from now? (0 for none)") || "0");
+      const months = parseInt(prompt("How many MONTHS from now? (0 for none)") || "0");
+      const days = parseInt(prompt("How many DAYS from now? (0 for none)") || "0");
+      const minutes = parseInt(prompt("How many MINUTES from now? (0 for none)") || "0");
+
+      if ([years, months, days, minutes].some(isNaN)) {
+        alert("Reminder not set. Invalid input.");
+        return;
+      }
+
+      const now = new Date();
+      const future = new Date(
+        now.getFullYear() + years,
+        now.getMonth() + months,
+        now.getDate() + days,
+        now.getHours(),
+        now.getMinutes() + minutes,
+        now.getSeconds()
+      );
+
+      const delay = future.getTime() - now.getTime();
+
+      if (delay <= 0) {
+        alert("Reminder not set. Time must be in the future.");
+        return;
+      }
+
+      setReminder(content, delay);
+    }
+
+    function setReminder(content, delay) {
+      if (Notification.permission !== "granted") {
+        Notification.requestPermission().then(permission => {
+          if (permission === "granted") {
+            scheduleNotification(content, delay);
+          } else {
+            alert("Reminder not set. Notifications were denied.");
+          }
+        });
+      } else {
+        scheduleNotification(content, delay);
+      }
+    }
+
+    function scheduleNotification(content, delay) {
+      setTimeout(() => {
+        new Notification("⏰ ARMY Notes Reminder", {
+          body: content,
+          icon: "https://upload.wikimedia.org/wikipedia/commons/9/96/BTS_logo.svg"
+        });
+      }, delay);
+    }
+
+    function saveNote(note) {
+      try {
+        const existing = JSON.parse(localStorage.getItem("armyNotes") || "[]");
+        existing.unshift(note);
+        localStorage.setItem("armyNotes", JSON.stringify(existing));
+      } catch (err) {
+        console.error("Error saving note:", err);
+      }
+    }
+
+    function deleteNote(index) {
+      try {
+        const existing = JSON.parse(localStorage.getItem("armyNotes") || "[]");
+        existing.splice(index, 1);
+        localStorage.setItem("armyNotes", JSON.stringify(existing));
+        displayNotes();
+      } catch (err) {
+        console.error("Error deleting note:", err);
+      }
+    }
+
+    function displayNotes() {
+      const notesList = document.getElementById("notesList");
+      try {
+        const existing = JSON.parse(localStorage.getItem("armyNotes") || "[]");
+        notesList.innerHTML = "";
+
+        existing.forEach((note, index) => {
+          const noteDiv = document.createElement("div");
+          noteDiv.className = "note";
+          noteDiv.innerHTML = `
+            <button class="delete-btn" onclick="deleteNote(${index})" title="Delete Note">&times;</button>
+            <strong>${note.tag}</strong> - <em>${note.date}</em><br>${note.content}
+          `;
+          notesList.appendChild(noteDiv);
+        });
+      } catch (err) {
+        notesList.innerHTML = "<p>Error loading notes.</p>";
+      }
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle("light");
+      localStorage.setItem("theme", document.body.classList.contains("light") ? "light" : "dark");
+    }
+
+    function loadTheme() {
+      if (localStorage.getItem("theme") === "light") {
+        document.body.classList.add("light");
+      }
+    }
+
+    window.onload = function () {
+      loadTheme();
+      displayNotes();
+    };
+  </script>
+</body>
+</html>
